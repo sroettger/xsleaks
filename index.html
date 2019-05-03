@@ -65,7 +65,7 @@ async function choose_test_server_url() {
     await fetch(cups_url, {mode: 'no-cors', cache: 'no-cache'});
     test_server_url = cups_url;
   } catch {
-    test_server_url = '/x';
+    test_server_url = 'http://www.google.com/csi';
   }
 }
 
