@@ -15,7 +15,7 @@ function log(s) {
 
 async function time_fetch() {
   let start = window.performance.now();
-  await fetch(test_server_url, {mode: 'no-cors'});
+  await fetch(test_server_url, {mode: 'no-cors', cache: 'no-cache'});
   let end = window.performance.now();
   return end - start;
 }
@@ -25,7 +25,7 @@ function timeout(ms) {
 }
 
 function fetch_sleep(i, t) {
-  return fetch(`http://${i}.${sleep_server_ip}.xip.io:${sleep_server_port}/sleep?t=${t}`, {mode: 'no-cors'});
+  return fetch(`http://${i}.${sleep_server_ip}.xip.io:${sleep_server_port}/sleep?t=${t}`, {mode: 'no-cors', cache: 'no-cache'});
 }
 
 async function block_socket(i) {
@@ -35,23 +35,13 @@ async function block_socket(i) {
 }
 
 async function exhaust_sockets() {
-  let i = 1;
-  for (; i < sock_cnt_start; i++) {
+  for (let i = 0; i < 255; i++) {
     block_socket(i);
   }
-  for (; i < 300; i++) {
-    let promise = fetch_sleep(0, short_sleep);
-    let fetch_time = await time_fetch();
-    await Promise.resolve(promise);
-    if (fetch_time >= short_sleep*1000) {
-      break;
-    }
-    block_socket(i);
-  }
-  log('used ' + (i-1) + ' connections');
+  log('blocked 255 connections');
 }
 
-async function time_page_loads(url, timing_cnt=512) {
+async function time_page_loads(url, timing_cnt=20) {
   log(`timing "${url}"`);
   let timings = new Array();
   window.opener.location = url;
@@ -67,10 +57,10 @@ async function time_page_loads(url, timing_cnt=512) {
 async function choose_test_server_url() {
   const cups_url = 'http://127.0.0.1:631/';
   try {
-    await fetch(cups_url, {mode: 'no-cors'});
+    await fetch(cups_url, {mode: 'no-cors', cache: 'no-cache'});
     test_server_url = cups_url;
   } catch {
-    test_server_url = 'http://example.com/';
+    test_server_url = '/x';
   }
 }
 
